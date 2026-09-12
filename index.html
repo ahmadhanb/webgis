@@ -1,0 +1,400 @@
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Borehole Location Map</title>
+        <link rel="stylesheet" href="css/leaflet.css" />
+        <link rel="stylesheet" href="css/main.css" />
+        <link rel="stylesheet" href="css/MarkerCluster.Default.css" />
+        <link rel="stylesheet" href="css/MarkerCluster.css" />
+        <link rel="stylesheet" href="css/info.css" />
+        <link rel="stylesheet" href="css/content-info.css" />
+        <link rel="stylesheet" href="css/leaflet-search.css" />
+        <link rel="stylesheet" href="css/iconLayers.css" />
+        <link rel="stylesheet" href="css/legend.css" />
+        <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+        <script src="js/leaflet-src.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="js/iconLayers.js"></script>
+        <script src="js/leaflet.markercluster-src.js"></script>
+        <script src="js/boundary.js"></script>
+        <script src="data/bh_sample.js"></script>
+    
+    </head>
+    <body>
+        <div id="map" style="height:100%;"></div>
+    </body>
+    <script type="text/javascript">
+
+    var osm = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+            });
+    var esri_sat = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            });
+    var esri_topo = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+            });
+
+    L.CircleMarker.include({
+        getBounds: function () {
+            var latlng = this.getLatLng();
+            return L.latLngBounds([latlng, latlng]);
+        }
+    });
+                
+//change the icons for each point on the map
+    var blackIcon = L.icon({
+        iconUrl:'css/images/BoreholeBlueHollowShadow.png',
+        iconSize: [25, 25], //size of the icon in pixels
+        iconAnchor: [10, 10], //point of the icon which will correspond to marker's location (the center)
+        popupAnchor: [0, 0] //point from which the popup should open relative to the iconAnchor
+    });
+
+// create cluster group using cluster plugin
+    var markers = L.markerClusterGroup({
+        zoomToBoundsOnClick: true,
+        disableClusteringAtZoom: 12,
+        maxClusterRadius: 40,
+        spiderfyOnMaxZoom: false,
+//        spiderfyDistanceMultiplier: 2,
+    });
+
+    var map = L.map('map', {
+        zoomSnap: 0,            //Fit the selected feature to the map window
+        zoomControl: false,     //Disable the default zoom toolbar
+        center: [3.2, 35.5],
+        zoom: 7.7,
+        layers: [osm, markers]
+    });
+
+    L.control.scale().addTo(map);
+  
+// Create a new Zoom toolbar with 'Home' button
+    L.Control.zoomHome = L.Control.extend({
+        options: {
+            position: 'topleft',
+            zoomInText: '<i class="fa fa-plus fa-xs"  style="line-height:2.5; font-size: 14; color: #ecd817"></i>',
+            zoomInTitle: 'Zoom in',
+            zoomOutText: '<i class="fa fa-minus fa-xs"  style="line-height:2.5; font-size: 14; color: #ecd817"></i>',
+            zoomOutTitle: 'Zoom out',
+            zoomHomeText: '<i class="fa fa-home fa-xs" style="line-height:2.0; font-size: 16; color: #ecd817"></i>',
+            zoomHomeTitle: 'Home'
+        },
+        
+        onAdd: function (map) {
+            var controlName = 'gin-control-zoom',
+            container = L.DomUtil.create('div', controlName + ' leaflet-bar'),
+            options = this.options;
+            
+            this._zoomInButton = this._createButton(options.zoomInText, options.zoomInTitle, controlName + '-in', container, this._zoomIn);
+            this._zoomOutButton = this._createButton(options.zoomOutText, options.zoomOutTitle, controlName + '-out', container, this._zoomOut);
+            this._zoomHomeButton = this._createButton(options.zoomHomeText, options.zoomHomeTitle, controlName + '-home', container, this._zoomHome);
+            
+            this._updateDisabled();
+            map.on('zoomend zoomlevelschange', this._updateDisabled, this);
+            
+            return container;
+        },
+        
+        onRemove: function (map){
+            map.off('zoomend zoomlevelschange', this._updateDisabled, this);
+            
+            return container;
+        },
+            
+        _zoomIn: function (e){
+            this._map.zoomIn(e.shiftKey ? 3 : 1);
+        },
+        
+        _zoomOut: function (e){
+            this._map.zoomOut(e.shiftKey ? 3 : 1);
+        },
+        
+        _zoomHome: function (e){
+            map.flyTo([3.2, 35.5], 7.7);
+        },
+        
+        _createButton: function (html, title, className, container, fn){
+            var link = L.DomUtil.create('a', className, container);
+            link.innerHTML = html;
+            link.href = '#';
+            link.title = title;
+            
+            L.DomEvent.on(link, 'mousedown dblclick', L.DomEvent.stopPropagation)
+                .on(link, 'click', L.DomEvent.stop)
+                .on(link, 'click', fn, this)
+                .on(link, 'click', this._refocusOnMap, this);
+                
+            return link;   
+        },
+        
+        _updateDisabled: function () {
+            var map = this._map,
+                className = 'leaflet-disabled';
+                
+            L.DomUtil.removeClass(this._zoomInButton, className);
+            L.DomUtil.removeClass(this._zoomOutButton, className);
+            
+            if (map._zoom === map.getMinZoom()) {
+                L.DomUtil.addClass(this._zoomOutButton, className);
+            }
+            
+            if (map._zoom === map.getMaxZoom()) {
+                L.DomUtil.addClass(this._zoomInButton, className);
+            }
+        }
+    });
+    
+    var zoomHome = new L.Control.zoomHome();
+    zoomHome.addTo(map);    
+
+// Defining the basemaps that should appear in the legend    
+    var baseLayers = {
+        "OpenStreetMap": osm,
+        "ESRI World Imagery": esri_sat,
+        "ESRI World Topo Map": esri_topo
+    };
+
+// Define a function to add a fill color to each Sub-County Boundary    
+    function getColor(d) {
+        return d === 'Turkana North'    ? '#117ed6' :
+            d === 'Turkana South'       ? '#cf11a0' :
+            d === 'Turkana East'        ? '#e0e488' :
+            d === 'Turkana West'        ? '#0000ff' :
+            d === 'Turkana Central'     ? '#71de36' :
+            d === 'Loima'               ? '#a87000' :
+            d === 'Kibish'              ? '#393939' :
+                                          '#FFEDA0';
+    }
+
+// Define a function to add different color to markers based on validation    
+    function markerColor(c) {
+        return c === 'APPROVED'     ? '#2ECC71' :
+                                      '#E74C3C';
+    }
+
+// Define a function to style each Zone_Boundary based on a field defined 
+// in the attribute table and using the fill colors defined above     
+    function style(feature) {
+        return {
+            fillColor: getColor(feature.properties.SUBCOUNTY),
+            weight: 2,
+            opacity: 1,
+            lineCap: 'square',
+            dashArray: '4',
+            color: 'Black',
+            fillOpacity: 0.15
+        };
+    }
+
+// Define a function to highlight each Sub-County boundary with red color 
+// when the mouse hover above the boundary    
+    function highlightFeatureBoundary (e) {
+        var layer = e.target;
+        
+        layer.setStyle({
+            weight: 5,
+            color: '#ff0000',
+            dashArray: '0',
+            fillOpacity: 0.05
+        });
+        info.update(layer.feature.properties);
+    }
+
+// Define a function to reset the highlight to its original state    
+    function resetHighlight(e){
+        geojsonBoundary.resetStyle(e.target)
+        info.update();
+    }
+
+// Define a function to zoom to the extent of each Sub-County when selected
+// The "padding" gives some margin when fitting feature to window 
+    function zoomToFeature(e) {
+    map.flyToBounds(e.target.getBounds(), {padding:[10,10]});
+    }
+
+// Define a function to put all the functions defined earlier into actions    
+    function onEachFeature (feature, layer) {
+        layer.on({
+            mouseover: highlightFeatureBoundary,
+            mouseout: resetHighlight,
+            click: zoomToFeature
+        });
+    }
+
+// Call the geoJson file that contains the borehole locations from another Javascript file   
+    geojsonBoundary = L.geoJson(wardBoundary, {
+        style: style,
+        onEachFeature: onEachFeature,
+        }).addTo(map);
+    
+    var info = L.control();
+    
+    info.onAdd = function (map) {
+        this._div = L.DomUtil.create('div','info'); //create div with class "info"
+        this.update();
+        return this._div;
+    };
+    
+// method that will use to update the control (Zone Info) based on feature properties passed
+    info.update = function (props){
+        this._div.innerHTML = '<h4> Ward Info </h4>' + (props?
+            '<b>' + 'Name: ' + props.IEBC_WARDS + '</b><br /><b>' + 'Area: ' + (props.AREA/1000000).toFixed(1) + ' km<sup>2</sup>'+ '</b>'
+            : 'Hover over a zone boundary');
+    };
+    
+    info.addTo(map);
+    
+    var overlays = {
+//    '<img src="css/images/BoreholeBlueHollowShadow.png" width="13" height="13"/> Existing Borehole': markers,
+    '<img src="css/images/Zone_Boundary.png" width="19" height="12.5"/> Ward Boundary': geojsonBoundary
+    };
+   
+// Access the geoJson file from another JavaScript file and create popup to show the information of each borehole     
+    var existingBHLayer = L.geoJson(borehole, {
+        pointToLayer: function (feature, latlng) {
+            var markerstyle = {
+                fillColor: markerColor(feature.properties.VALIDATION),
+                color: 'Black',
+                weight: 1,
+                fillOpacity: 0.8,
+                opacity: 0.8,
+                radius: 8
+            };
+        
+        return L.circleMarker(latlng, markerstyle);       
+    },
+        onEachFeature: function (feature, layer) {
+    
+        var content = '<div class="tabs">' +
+
+            '<div class="tab" id="Summary">' +
+            '<div class="content">' +
+            "<b> Code: </b>" + feature.properties.BH_CODE + "<br /><b>" + "Name: </b>" + feature.properties.NAME + "<br/><b>" + "Locality: </b>" + feature.properties.LOCALITY 
+            + "<br /><b>" + "Ward: </b>" + feature.properties.WARD + "<br /><b>" + "Subcounty: </b>" + feature.properties.SUBCOUNTY + "<br /><b>" + "Validated: </b>" + feature.properties.VALIDATION 
+            + "<br /><b>" + "Last Update: </b>" + feature.properties.LASTUPDATE + "<br />" +
+            '</div>' +
+            '</div>' +
+
+            '<div class="tab" id="Detail">' +
+            '<div class="content">' +
+            "<b>" + "Drilled: </b>" + feature.properties.DRILLED + "<br /><b>" + "Successful: </b>" + feature.properties.SUCCESSFUL + "<br /><b>" + "Equipped: </b>" + feature.properties.EQUIPPED 
+            + "<br /><b>" + "Pump Type: </b>" + feature.properties.PUMP_TYPE + "<br /><b>" + "Functioning: </b>" + feature.properties.FUNCTION + "<br /><b>" + "Reason: </b>" + feature.properties.REASON 
+            + "<br /><b>" + "Drilling Year: </b>" + feature.properties.DRILLYEAR + "<br /><b>" + "Water Quality: </b>" + feature.properties.WT_QUALITY + "<br /><b>" + "Funded By: </b>" + feature.properties.FUNDED_BY 
+            + "<br /><b>" + "Maintained By: </b>" + feature.properties.MAINTAINBY + "<br />" +
+            '</div>' +
+            '</div>' +
+
+            '<div class="tab" id="Photo">' +
+            '<div class="content">' +
+            feature.properties.PHOTO +
+            '</div>' +
+            '</div>' +
+            
+            '<ul class="tabs-link">' +
+            '<li class="tab-link"> <a href="#Summary"><span>Summary</span></a></li>' +
+            '<li class="tab-link"> <a href="#Detail"><span>Detail</span></a></li>' +
+            '<li class="tab-link"> <a href="#Photo"><span>Photo</span></a></li>' +
+            '</ul>' +        
+            '</div>';            
+
+            // create a new variable that concatenate two fields to use it for search control
+			var p = layer.feature.properties;
+			p.index = p.BH_CODE + " | " + p.NAME + " | " + p.WARD;
+
+            layer.bindPopup(content, {
+            autopan:false,autoPanPaddingTopLeft:(1,1)}).on('click',clickZoom);
+
+            let isClicked = false
+
+            layer.on({
+                mouseover: function() {
+                    if(!isClicked) {
+                        this.openPopup()
+                    }
+                },
+                mouseout: function() { 
+                    if(!isClicked) {
+                        this.closePopup()
+                    }
+                },
+                click: function() {
+                    isClicked = true
+                    this.openPopup()
+                }
+            })
+
+            map.on ({
+                click: function() {
+                    isClicked = false
+                },
+                popupclose: function () {
+                    isClicked = false
+                }
+            })
+
+//            layer.on('mouseover', function() {
+//                layer.openPopup();
+//            });
+            
+            function clickZoom(e) {
+            map.flyTo(e.target.getLatLng(),16);
+            }
+        }
+       
+    });
+        markers.on('clusterclick', function (a) {
+            a.layer.zoomToBounds();
+        });
+
+ 
+    markers.addLayer(existingBHLayer);
+
+//    layerControl = L.control.layers(baseLayers, overlays, {collapsed:false}).addTo(map);
+    layerControl = L.control.layers(baseLayers, overlays, {collapsed:false}).addTo(map);
+
+var legend = L.control({position: 'topright'});
+    legend.onAdd = function (map) {
+
+    var div = L.DomUtil.create('div', 'info legend');
+    labels = ['<strong>BOREHOLE STATUS</strong>'],
+    categories = ['APPROVED','UNVALIDATED'];
+
+    for (var i = 0; i < categories.length; i++) {
+
+            div.innerHTML += 
+            labels.push(
+                '<i class="circle" style="background:' + markerColor(categories[i]) + '"></i> ' +
+            (categories[i] ? categories[i] : '+'));
+
+        }
+        div.innerHTML = labels.join('<br>');
+    return div;
+    };
+    legend.addTo(map);
+
+// Create search box to search ward names    
+    var searchControl = new L.Control.Search({
+		position:'topleft',		
+		layer: markers,
+        propertyName: 'index',
+        initial: false,
+        zoom: 16,
+        textPlaceholder: 'Search borehole code, name, or ward ...',
+        hideMarkerOnCollapse: true,
+		marker: {
+            icon: false,
+            circle: {
+                radius: 12,
+                weight: 1,
+                color: '#ff76ab',
+                stroke: true,
+                fill: false
+            }
+        }
+	});
+    
+	map.addControl( searchControl );  //inizialize search control
+
+    </script>
+</html>

@@ -1,0 +1,75 @@
+/* required styles for popup tab content */
+
+.info_2 {
+  background:#fff;
+  position:absolute;
+  width:260px;
+  top:10px;
+  right:10px;
+  border-radius:2px;
+  }
+.info_2 .item {
+  display:block;
+  border-bottom:1px solid #eee;
+  padding:10px;
+  text-decoration:none;
+  }
+  .info_2 .item small { color:#888; }
+  .info_2 .item:hover,
+  .info_2 .item.active { background:#f8f8f8; }
+  .info_2 .item:last-child { border-bottom:none; }
+
+.leaflet-popup-content {
+  width: 350px;
+  height: 240px;
+  }
+
+.tabs {
+    position:relative;
+    min-height:220px;
+    clear:both;
+    margin:25px 0;
+}
+.tab {
+    float:left;
+    display: none;
+}
+.tab:first-of-type {
+    display: inline-block;
+}
+.tabs-link {
+    position: relative;
+    top: -14px;
+    height: 20px;
+    left: -50px;
+}
+.tab-link {
+    background:#eee;
+    display: inline-block;
+    padding:10px;
+    border:1px solid #ccc;
+    margin-left:-1px;
+    position:relative;
+    list-style-type: none;
+    left:1px;
+    top:1px;
+    cursor:pointer;
+}
+.tab-link {
+    background:#f8f8f8;
+}
+.content {
+    background:white;
+    position:absolute;
+    width: 103%;
+    height: 93%;
+    top:28px;
+    left:-10;
+    right:0;
+    bottom:0;
+    padding:5px;
+    border:1px solid #ccc;
+}
+.tab:target {
+    display: block;
+}
